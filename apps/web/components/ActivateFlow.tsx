@@ -4,12 +4,32 @@ import { useState } from 'react';
 import type { AgentCategory, AgentSummary } from '@m402/shared-types';
 import { CATEGORY_DEFAULT_TERMS } from '@m402/shared-types';
 import { ApiUnreachableError, negotiate, notifyFunded } from '@/lib/api';
+import { CONTRACTS } from '@/lib/erc8183/contracts';
+import { fundJob, type FundProgress, type FundStep } from '@/lib/erc8183/buyer';
 import { useWallet } from '@/lib/useWallet';
 import { Button } from './ui/Button';
 import { Panel } from './ui/Panel';
 import { StatusBadge } from './ui/StatusBadge';
 
-type FlowStep = 'idle' | 'negotiating' | 'quoted' | 'needs-auth' | 'funding' | 'notifying' | 'done' | 'error';
+type FlowStep =
+  | 'idle'
+  | 'negotiating'
+  | 'quoted'
+  | 'needs-auth'
+  | 'funding'
+  | 'notifying'
+  | 'done'
+  | 'error';
+
+const FUND_STEP_LABELS: Record<FundStep, string> = {
+  'create-job': 'Create job',
+  'register-job': 'Register job (bind policy)',
+  'set-budget': 'Set budget',
+  approve: 'Approve U token',
+  fund: 'Fund escrow',
+  done: 'Done',
+};
+const FUND_STEP_ORDER: FundStep[] = ['create-job', 'register-job', 'set-budget', 'approve', 'fund'];
 
 export function ActivateFlow({ agent }: { agent: AgentSummary }) {
   const wallet = useWallet();
@@ -24,8 +44,9 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
   const [hireId, setHireId] = useState<string | null>(null);
   const [quote, setQuote] = useState<Record<string, unknown> | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  const [jobId, setJobId] = useState('');
-  const [txHash, setTxHash] = useState('');
+  const [fundProgress, setFundProgress] = useState<Record<FundStep, FundProgress['status'] | undefined>>(
+    {} as Record<FundStep, FundProgress['status'] | undefined>
+  );
 
   async function handleGetQuote() {
     setStep('negotiating');
@@ -56,16 +77,41 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
     }
   }
 
-  async function handleNotifyFunded() {
-    if (!hireId || !jobId) return;
-    setStep('notifying');
+  async function handleFundAndNotify() {
+    if (!hireId || !window.ethereum) return;
+
+    if (wallet.chainId !== '0x61') {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: '0x61' }], // BSC testnet, where CONTRACTS live
+        });
+      } catch {
+        setStep('error');
+        setMessage('Switch your wallet to BSC testnet (chain 97) to fund this job.');
+        return;
+      }
+    }
+
+    setStep('funding');
+    setFundProgress({} as Record<FundStep, FundProgress['status']>);
     try {
-      const result = await notifyFunded(hireId, Number(jobId), txHash || undefined);
-      setMessage(result.note ?? result.status);
+      const priceRaw = quote?.price;
+      const budgetU = typeof priceRaw === 'string' || typeof priceRaw === 'number' ? String(priceRaw) : '0.1';
+
+      const result = await fundJob(
+        window.ethereum,
+        { providerAddress: agent.walletAddress, description: taskDescription, budgetU },
+        (progress) => setFundProgress((prev) => ({ ...prev, [progress.step]: progress.status }))
+      );
+
+      setStep('notifying');
+      const notifyResult = await notifyFunded(hireId, Number(result.jobId), result.fundTx);
+      setMessage(notifyResult.note ?? notifyResult.status);
       setStep('done');
-    } catch {
+    } catch (err) {
       setStep('error');
-      setMessage('notify-funded failed to reach the API.');
+      setMessage(err instanceof Error ? err.message : 'Funding transaction failed or was rejected.');
     }
   }
 
@@ -165,36 +211,37 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
             {JSON.stringify(quote, null, 2)}
           </pre>
           <p className="text-xs text-text-muted">
-            Next: fund this job on-chain (an ERC-8183 <code className="text-text">AgenticCommerce</code>{' '}
-            transaction, signed in your wallet — see{' '}
-            <code className="text-text">ON_CHAIN_FUNDING.md</code> for exactly what&apos;s verified
-            about that call and what&apos;s still open). Once you have the resulting job ID and tx
-            hash, enter them below to tell the agent to deliver.
+            Next: fund this job on BSC testnet — 5 transactions in your wallet against the real{' '}
+            <code className="text-text">AgenticCommerce</code> contract (
+            <code className="text-text">{CONTRACTS.COMMERCE.slice(0, 10)}…</code>), then notify the
+            agent automatically.
           </p>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <input
-              className="flex-1 rounded-sm border border-line bg-ink p-2 font-mono text-sm text-text"
-              placeholder="job id"
-              value={jobId}
-              onChange={(e) => setJobId(e.target.value)}
-            />
-            <input
-              className="flex-1 rounded-sm border border-line bg-ink p-2 font-mono text-sm text-text"
-              placeholder="tx hash (optional)"
-              value={txHash}
-              onChange={(e) => setTxHash(e.target.value)}
-            />
-            <Button variant="primary" onClick={handleNotifyFunded} disabled={!jobId}>
-              Notify funded
-            </Button>
-          </div>
+          <Button variant="primary" onClick={handleFundAndNotify}>
+            Fund on-chain &amp; notify
+          </Button>
         </Panel>
       )}
 
-      {step === 'notifying' && (
-        <Button variant="primary" disabled>
-          Notifying the agent…
-        </Button>
+      {(step === 'funding' || step === 'notifying') && (
+        <Panel className="flex flex-col gap-2 p-4">
+          {FUND_STEP_ORDER.map((s) => (
+            <div key={s} className="flex items-center justify-between font-mono text-xs">
+              <span className={fundProgress[s] ? 'text-text' : 'text-text-muted'}>
+                {FUND_STEP_LABELS[s]}
+              </span>
+              <span>
+                {fundProgress[s] === 'confirmed' ? (
+                  <span className="text-sage">✓ confirmed</span>
+                ) : fundProgress[s] === 'pending' ? (
+                  <span className="text-amber">waiting for wallet…</span>
+                ) : (
+                  <span className="text-text-muted">—</span>
+                )}
+              </span>
+            </div>
+          ))}
+          {step === 'notifying' && <p className="pt-2 text-xs text-sage">Funded — notifying the agent…</p>}
+        </Panel>
       )}
 
       {step === 'done' && (
@@ -216,3 +263,4 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
     </div>
   );
 }
+
