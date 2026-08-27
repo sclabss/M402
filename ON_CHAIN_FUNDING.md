@@ -60,6 +60,30 @@ check even though it turned out to already be correct. Worth the extra
 verification step given wrong ABI field order silently decodes wrong data
 rather than throwing.
 
+**Independent cross-check (session 7):** the contract addresses in
+`contracts.ts` were sourced from the demo repo in session 5. This session
+found the actual `@bnbagent/sdk` package (nested under the CLI installed in
+session 2) ships its own hardcoded registry — `dist/networks/index.cjs`,
+`BNB_CHAIN_ADDRESSES[97]`. Read it at runtime and compared directly: every
+address matches exactly (`commerceProxy`, `routerProxy`, `policy`,
+`paymentToken`). Two independent sources agreeing is meaningfully stronger
+evidence than one, and it confirmed something else worth knowing —
+`commerceProxy`/`routerProxy` are genuinely the addresses to call (this is
+an upgradeable-proxy pattern; `commerceImpl`/`routerImpl` are the
+underlying implementations, not call targets), which is exactly what
+`contracts.ts` already uses.
+
+**OAuth2/Cognito — still genuinely open, now with more places ruled out.**
+Checked the SDK's own `erc8183` and `storage` modules this session on the
+chance either handled it. Neither does — `erc8183` authenticates purely by
+wallet signature (on-chain calls, no HTTP auth layer), and the `storage`
+module's bearer-auth code is generic upload-provider plumbing, unrelated.
+Combined with `gateway.ts` being a dead end last session, that's three
+places checked that all turned out to be adjacent-but-different concerns.
+The actual answer is presumably in whatever `bag deploy --provider aws`
+provisions on Cognito's side — not yet checked, since it requires an actual
+deploy to inspect.
+
 ## What's still open
 
 - **Not tested against a live chain** — no deployed agent to actually

@@ -31,6 +31,13 @@ export function listAgents(category?: AgentCategory): Promise<{ agents: AgentSum
   return request(`/agents${qs}`);
 }
 
+export function listExternalAgents(
+  category?: AgentCategory
+): Promise<{ agents: AgentSummary[]; hasMore: boolean; note?: string }> {
+  const qs = category ? `?category=${category}` : '';
+  return request(`/catalog/external${qs}`);
+}
+
 export function getAgent(slug: string): Promise<{ agent: AgentSummary | null }> {
   return request(`/agents/${slug}`);
 }

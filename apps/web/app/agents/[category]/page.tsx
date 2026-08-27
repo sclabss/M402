@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
-import { AGENT_CATEGORIES, CATEGORY_AGENT_FOLDER, type AgentCategory } from '@m402/shared-types';
+import { AGENT_CATEGORIES, CATEGORY_AGENT_FOLDER, type AgentCategory, type AgentSummary } from '@m402/shared-types';
 import { AgentCard } from '@/components/AgentCard';
 import { Panel } from '@/components/ui/Panel';
-import { ApiUnreachableError, listAgents } from '@/lib/api';
+import { ApiUnreachableError, listAgents, listExternalAgents } from '@/lib/api';
 
 export function generateStaticParams() {
   return AGENT_CATEGORIES.map((c) => ({ category: c.value }));
@@ -12,10 +12,16 @@ export default async function CategoryPage({ params }: { params: { category: str
   const category = AGENT_CATEGORIES.find((c) => c.value === params.category);
   if (!category) return notFound();
 
-  let agents: Awaited<ReturnType<typeof listAgents>>['agents'] = [];
+  let agents: AgentSummary[] = [];
+  let externalNote: string | undefined;
   let loadError: string | null = null;
   try {
-    ({ agents } = await listAgents(category.value));
+    const [native, external] = await Promise.all([
+      listAgents(category.value),
+      listExternalAgents(category.value).catch(() => ({ agents: [] as AgentSummary[], hasMore: false })),
+    ]);
+    agents = [...native.agents, ...external.agents];
+    externalNote = 'note' in external ? external.note : undefined;
   } catch (err) {
     loadError = err instanceof ApiUnreachableError ? err.message : 'Could not load agents.';
   }
@@ -54,6 +60,8 @@ export default async function CategoryPage({ params }: { params: { category: str
           ))}
         </div>
       )}
+
+      {externalNote && <p className="font-mono text-[11px] text-text-muted">{externalNote}</p>}
     </main>
   );
 }

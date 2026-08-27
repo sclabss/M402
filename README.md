@@ -9,26 +9,37 @@ See `ARCHITECTURE.md` for the full system design and reasoning.
 
 ## What's in this session
 
-**Session 6 — deliverable retrieval, closing the on-chain loop.**
+**Session 7 — 8004scan wired up for real, plus a cross-verification win.**
 
-- ✅ `apps/web/lib/erc8183/deliverable.ts`: reads a job's finished output
-  back off-chain once it's SUBMITTED (`JobSubmitted` on `AgenticCommerce` →
-  `JobInitialised` on `OptimisticPolicy` → decode `deliverable_url` from
-  `optParams`) — the other half of session 5's funding call, same source.
-- ✅ `ActivateFlow.tsx` now polls (bounded, 12 attempts) after a successful
-  `notify-funded` and shows the deliverable link once it lands, instead of
-  stopping at "funded."
-- ✅ Caught and fixed two ABI-copying mistakes while porting the event
-  definitions — see `ON_CHAIN_FUNDING.md` for what happened and how they
-  were caught (re-verifying with real brace matching, not trusting a first
-  grep).
-- ⬜ `gateway.ts` (checked while already in the demo repo) turned out to be
-  unrelated infra, not the OAuth2 answer — noted so nobody re-checks it.
+- ✅ `apps/api/src/lib/eightThousandFourScan.ts`: typed client built from
+  8004scan's actual published OpenAPI spec, not the endpoint-name list
+  alone — caught two corrections in the process: auth is an `X-API-Key`
+  header (the session-1 stub had `Bearer`), and responses are wrapped in
+  `{success, data, meta}`.
+- ✅ **Live-tested against the real API** (something most of this project
+  can't do yet, since no agent is deployed) and caught two more real
+  discrepancies the spec doesn't mention: `token_id` comes back as a
+  string, not the integer the schema declares, and the `protocol` query
+  param doesn't reliably filter server-side. Added a client-side safety
+  filter rather than trusting the param — see the code comments in that
+  file for the live evidence.
+- ✅ Category pages now merge native + 8004scan agents. Since 8004scan has
+  no concept of our category taxonomy, matching is an honest best-effort
+  (protocol=A2A + a text-search hint), and that limitation is surfaced in
+  the UI, not hidden.
+- ✅ Independently cross-verified session 5's contract addresses against
+  `@bnbagent/sdk`'s own hardcoded registry (found nested under the CLI
+  install) — every address matches. See `ON_CHAIN_FUNDING.md`.
+- ⬜ OAuth2/Cognito — checked the SDK's `erc8183` and `storage` modules on
+  the chance either had it; neither does. Three places ruled out now
+  (`gateway.ts` last session, these two this session). Still open.
 
-**Session 5 recap:** the on-chain funding call itself — 5 wallet-signed
-transactions against the real deployed `AgenticCommerce` contract, EIP-712
-question resolved as not needed. Full detail in that commit / in
-`ON_CHAIN_FUNDING.md`.
+**Session 6 recap:** deliverable retrieval closing the on-chain loop —
+`JobSubmitted` → `JobInitialised` → decode `deliverable_url`, wired into
+`ActivateFlow`'s post-notify polling.
+
+**Session 5 recap:** the on-chain funding call — 5 wallet-signed
+transactions against the real deployed `AgenticCommerce` contract.
 
 **Sessions 1–4 recap:** monorepo scaffold, real `bag init` agent scaffolds,
 corrected A2A/commerce protocol, frontend data flow + Activate flow, seed
