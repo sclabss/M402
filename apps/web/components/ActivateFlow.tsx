@@ -6,6 +6,7 @@ import { CATEGORY_DEFAULT_TERMS } from '@m402/shared-types';
 import { ApiUnreachableError, negotiate, notifyFunded } from '@/lib/api';
 import { CONTRACTS } from '@/lib/erc8183/contracts';
 import { fundJob, type FundProgress, type FundStep } from '@/lib/erc8183/buyer';
+import { pollForDeliverable } from '@/lib/erc8183/deliverable';
 import { useWallet } from '@/lib/useWallet';
 import { Button } from './ui/Button';
 import { Panel } from './ui/Panel';
@@ -18,6 +19,8 @@ type FlowStep =
   | 'needs-auth'
   | 'funding'
   | 'notifying'
+  | 'polling'
+  | 'delivered'
   | 'done'
   | 'error';
 
@@ -47,6 +50,8 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
   const [fundProgress, setFundProgress] = useState<Record<FundStep, FundProgress['status'] | undefined>>(
     {} as Record<FundStep, FundProgress['status'] | undefined>
   );
+  const [pollAttempt, setPollAttempt] = useState<{ n: number; max: number } | null>(null);
+  const [deliverableUrl, setDeliverableUrl] = useState<string | null>(null);
 
   async function handleGetQuote() {
     setStep('negotiating');
@@ -108,7 +113,24 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
       setStep('notifying');
       const notifyResult = await notifyFunded(hireId, Number(result.jobId), result.fundTx);
       setMessage(notifyResult.note ?? notifyResult.status);
-      setStep('done');
+
+      setStep('polling');
+      setPollAttempt({ n: 0, max: 12 });
+      try {
+        const url = await pollForDeliverable(result.jobId, (n, max) => setPollAttempt({ n, max }));
+        if (url) {
+          setDeliverableUrl(url);
+          setStep('delivered');
+        } else {
+          setStep('done'); // agent is still working; not an error, just not ready yet
+        }
+      } catch (pollErr) {
+        // Deliverable polling needs NEXT_PUBLIC_BSC_LOG_RPC_URL -- if it's
+        // missing, don't fail the whole flow (funding + notify already
+        // succeeded), just say so and stop polling.
+        setMessage(pollErr instanceof Error ? pollErr.message : 'Could not poll for the deliverable.');
+        setStep('done');
+      }
     } catch (err) {
       setStep('error');
       setMessage(err instanceof Error ? err.message : 'Funding transaction failed or was rejected.');
@@ -244,10 +266,37 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
         </Panel>
       )}
 
+      {step === 'polling' && (
+        <Panel className="flex flex-col gap-2 p-4">
+          <StatusBadge status="fulfilled" />
+          <p className="text-sm text-text-muted">
+            Waiting for the agent to submit its deliverable on-chain
+            {pollAttempt ? ` (check ${pollAttempt.n}/${pollAttempt.max})` : ''}…
+          </p>
+        </Panel>
+      )}
+
+      {step === 'delivered' && deliverableUrl && (
+        <Panel className="flex flex-col gap-2 p-4">
+          <StatusBadge status="settled" />
+          <p className="text-sm text-text">Deliverable ready.</p>
+          <a
+            href={deliverableUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="font-mono text-xs text-sage hover:underline"
+          >
+            {deliverableUrl} →
+          </a>
+        </Panel>
+      )}
+
       {step === 'done' && (
         <Panel className="flex flex-col gap-2 p-4">
           <StatusBadge status="fulfilled" />
-          <p className="text-sm text-text-muted">{message}</p>
+          <p className="text-sm text-text-muted">
+            {message ?? 'Funded and notified. The agent is still working — deliverable not on-chain yet.'}
+          </p>
         </Panel>
       )}
 

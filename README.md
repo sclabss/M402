@@ -9,21 +9,26 @@ See `ARCHITECTURE.md` for the full system design and reasoning.
 
 ## What's in this session
 
-**Session 5 — the real on-chain funding call, implemented and verified.**
+**Session 6 — deliverable retrieval, closing the on-chain loop.**
 
-- ✅ Cloned BNB Chain's own official demo (`bnb-chain/stockanalyst-agent-demo`)
-  and read its buyer-client source directly for real contract addresses and
-  ABIs, rather than guessing — see `apps/web/lib/erc8183/`.
-- ✅ `ActivateFlow.tsx`'s funding step is real now: 5 wallet-signed
-  transactions (`createJob` → `registerJob` → `setBudget` → `approve` →
-  `fund`) against the actual deployed `AgenticCommerce` contract on BSC
-  testnet, with live per-step progress, then automatic `notify-funded`.
-- ✅ Resolved the EIP-712 question from session 4 by checking our own
-  agents' generated source directly: not needed for M402's `notify_funded`.
-- ✅ `ON_CHAIN_FUNDING.md` updated to reflect what's verified vs. still open.
-- ⬜ Deliverable retrieval (reading finished work back off-chain) — real,
-  documented, not yet implemented.
-- ⬜ Not yet tested against a live chain — no deployed agent exists yet.
+- ✅ `apps/web/lib/erc8183/deliverable.ts`: reads a job's finished output
+  back off-chain once it's SUBMITTED (`JobSubmitted` on `AgenticCommerce` →
+  `JobInitialised` on `OptimisticPolicy` → decode `deliverable_url` from
+  `optParams`) — the other half of session 5's funding call, same source.
+- ✅ `ActivateFlow.tsx` now polls (bounded, 12 attempts) after a successful
+  `notify-funded` and shows the deliverable link once it lands, instead of
+  stopping at "funded."
+- ✅ Caught and fixed two ABI-copying mistakes while porting the event
+  definitions — see `ON_CHAIN_FUNDING.md` for what happened and how they
+  were caught (re-verifying with real brace matching, not trusting a first
+  grep).
+- ⬜ `gateway.ts` (checked while already in the demo repo) turned out to be
+  unrelated infra, not the OAuth2 answer — noted so nobody re-checks it.
+
+**Session 5 recap:** the on-chain funding call itself — 5 wallet-signed
+transactions against the real deployed `AgenticCommerce` contract, EIP-712
+question resolved as not needed. Full detail in that commit / in
+`ON_CHAIN_FUNDING.md`.
 
 **Sessions 1–4 recap:** monorepo scaffold, real `bag init` agent scaffolds,
 corrected A2A/commerce protocol, frontend data flow + Activate flow, seed

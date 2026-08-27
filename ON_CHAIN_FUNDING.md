@@ -1,6 +1,7 @@
-# The ERC-8183 on-chain funding call — resolved
+# The ERC-8183 on-chain buyer flow — funding and delivery, resolved
 
-Was open research as of session 4. Now implemented in
+Was open research as of session 4. Funding got implemented in session 5;
+deliverable retrieval in session 6. Both now live in
 `apps/web/lib/erc8183/` and wired into `ActivateFlow.tsx`. This file is the
 record of how it got resolved, kept for the same reason session 2's
 correction was called out explicitly rather than silently overwritten.
@@ -37,17 +38,42 @@ skill we actually deployed only expects
 `{"skill": "notify_funded", "job_id": <int>}`. No EIP-712 needed for M402.
 `apps/api/src/routes/hire.ts`'s existing implementation was already correct.
 
+**Deliverable retrieval (session 6):** once a job reaches SUBMITTED, the
+finished work isn't returned by any API call — it's read off-chain, by
+finding the `JobSubmitted` block on `AgenticCommerce` (`apps/web/lib/
+erc8183/deliverable.ts`'s `findSubmitBlock`), then reading the
+`JobInitialised` event that same window emits on `OptimisticPolicy` and
+JSON-decoding its `optParams` bytes for a `deliverable_url` field. Needs a
+*second*, separate provider from the wallet's own — standard BSC testnet
+data-seed nodes reject `eth_getLogs`, confirmed by the official demo
+needing its own `BSC_LOG_RPC_URL` with no built-in default. `ActivateFlow`
+polls (bounded, 12 attempts) after a successful `notify_funded` rather than
+assuming the deliverable is instantly available, since the agent works in
+the background with no push notification back to the buyer.
+
+Caught two extraction mistakes while copying these event ABIs over, both
+from the same root cause (grabbing text near a name match instead of the
+whole enclosing object) and both caught by re-verifying with actual brace
+matching instead of trusting the first pass: `JobSubmitted` was missing an
+entire indexed `provider` field, and `JobInitialised` needed the same
+check even though it turned out to already be correct. Worth the extra
+verification step given wrong ABI field order silently decodes wrong data
+rather than throwing.
+
 ## What's still open
 
 - **Not tested against a live chain** — no deployed agent to actually
   negotiate with yet (needs the steps in `agents/README.md` first), so this
   is verified-by-reading-real-source, not verified-by-running. `bag doctor`
   / a real `bag dev` agent is the natural next check once one exists.
-- **Deliverable retrieval** (reading the finished work back off-chain once
-  a job reaches SUBMITTED) isn't implemented — the demo does it by parsing
-  JSON out of a `JobInitialised` event's `optParams` on the Policy
-  contract, using a separate archive RPC because standard BSC testnet
-  data-seed nodes block `eth_getLogs`. Real, but a separate piece of work.
 - **`settle()`** (claiming payment after the dispute window) is
   deliberately operator-run CLI per the agent's own card, not wired into
   the buyer-facing UI — correctly out of scope here.
+- **`gateway.ts` turned out to be a dead end for the OAuth2 question** —
+  checked it while in the demo repo anyway, since it was already cloned.
+  It's a *different* piece of infrastructure entirely: a local payload
+  relay the buyer runs to hand large data (e.g. portfolio holdings) to the
+  seller over a plain bearer token, unrelated to authenticating against a
+  deployed agent's own A2A/Cognito endpoint. Worth knowing so nobody else
+  goes looking there for the same answer — the OAuth2 TODO in
+  `apps/api/src/routes/hire.ts` is still genuinely open.

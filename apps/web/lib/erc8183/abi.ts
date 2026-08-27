@@ -79,6 +79,16 @@ export const COMMERCE_ABI = [
     name: 'JobCreated',
     type: 'event',
   },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'jobId', type: 'uint256' },
+      { indexed: true, internalType: 'address', name: 'provider', type: 'address' },
+      { indexed: false, internalType: 'bytes32', name: 'deliverable', type: 'bytes32' },
+    ],
+    name: 'JobSubmitted',
+    type: 'event',
+  },
 ] as const;
 
 export const ROUTER_ABI = [
@@ -105,6 +115,17 @@ export const ROUTER_ABI = [
 ] as const;
 
 export const POLICY_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'uint256', name: 'jobId', type: 'uint256' },
+      { indexed: false, internalType: 'bytes32', name: 'deliverable', type: 'bytes32' },
+      { indexed: false, internalType: 'uint64', name: 'submittedAt', type: 'uint64' },
+      { indexed: false, internalType: 'bytes', name: 'optParams', type: 'bytes' },
+    ],
+    name: 'JobInitialised',
+    type: 'event',
+  },
   {
     inputs: [],
     name: 'disputeWindow',
