@@ -165,10 +165,11 @@ export function ActivateFlow({ agent }: { agent: AgentSummary }) {
             {JSON.stringify(quote, null, 2)}
           </pre>
           <p className="text-xs text-text-muted">
-            Next: fund this job on-chain (an ERC-8183 <code className="text-text">createJob</code> +{' '}
-            <code className="text-text">fund</code> transaction, signed in your wallet — that
-            contract call isn&apos;t wired into this UI yet). Once you have the resulting job ID
-            and tx hash, enter them below to tell the agent to deliver.
+            Next: fund this job on-chain (an ERC-8183 <code className="text-text">AgenticCommerce</code>{' '}
+            transaction, signed in your wallet — see{' '}
+            <code className="text-text">ON_CHAIN_FUNDING.md</code> for exactly what&apos;s verified
+            about that call and what&apos;s still open). Once you have the resulting job ID and tx
+            hash, enter them below to tell the agent to deliver.
           </p>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input

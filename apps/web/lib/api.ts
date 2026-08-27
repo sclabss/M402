@@ -50,6 +50,26 @@ export function negotiate(
   return request('/hire', { method: 'POST', body: JSON.stringify(input) });
 }
 
+export interface AdvantageReportTask {
+  id: string;
+  taskName: string;
+  category: string | null;
+  isHighStakes: boolean;
+  ranWithAgent: boolean;
+  timeSeconds: number | null;
+  costUsd: number | null;
+  qualityNotes: string | null;
+  outputUrl: string | null;
+  createdAt: string;
+}
+
+export function getAdvantageReport(): Promise<{
+  tasks: AdvantageReportTask[];
+  summary: { distinctTasks: number; meetsMinimumThree: boolean; hasHighStakesTask: boolean };
+}> {
+  return request('/advantage-report');
+}
+
 export function notifyFunded(
   hireId: string,
   jobId: number,

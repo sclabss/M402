@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { CategoryGrid } from '@/components/CategoryGrid';
 import { LedgerFeed } from '@/components/LedgerFeed';
 import { Button } from '@/components/ui/Button';
@@ -10,6 +11,12 @@ export default function HomePage() {
       <header className="flex items-center justify-between">
         <span className="font-mono text-sm font-medium tracking-wide text-text">M402</span>
         <nav className="flex items-center gap-6">
+          <Link
+            href="/advantage-report"
+            className="hidden font-mono text-xs text-text-muted hover:text-amber sm:inline"
+          >
+            Advantage Report
+          </Link>
           <span className="hidden font-mono text-xs text-text-muted sm:inline">
             4 categories · live on BSC
           </span>
