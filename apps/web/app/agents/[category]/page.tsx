@@ -1,14 +1,24 @@
 import { notFound } from 'next/navigation';
-import { AGENT_CATEGORIES } from '@m402/shared-types';
+import { AGENT_CATEGORIES, CATEGORY_AGENT_FOLDER, type AgentCategory } from '@m402/shared-types';
+import { AgentCard } from '@/components/AgentCard';
 import { Panel } from '@/components/ui/Panel';
+import { ApiUnreachableError, listAgents } from '@/lib/api';
 
 export function generateStaticParams() {
   return AGENT_CATEGORIES.map((c) => ({ category: c.value }));
 }
 
-export default function CategoryPage({ params }: { params: { category: string } }) {
+export default async function CategoryPage({ params }: { params: { category: string } }) {
   const category = AGENT_CATEGORIES.find((c) => c.value === params.category);
   if (!category) return notFound();
+
+  let agents: Awaited<ReturnType<typeof listAgents>>['agents'] = [];
+  let loadError: string | null = null;
+  try {
+    ({ agents } = await listAgents(category.value));
+  } catch (err) {
+    loadError = err instanceof ApiUnreachableError ? err.message : 'Could not load agents.';
+  }
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-10 sm:px-8">
@@ -17,11 +27,33 @@ export default function CategoryPage({ params }: { params: { category: string } 
         <h1 className="font-display text-3xl font-medium text-text">{category.label}</h1>
         <p className="max-w-lg text-text-muted">{category.blurb}</p>
       </div>
-      <Panel className="p-6 text-sm text-text-muted">
-        Agent listings for this category wire up to{' '}
-        <code className="font-mono text-text">GET /agents?category={category.value}</code> in
-        session 2 — this route is scaffolded and typed, not yet fed by the live API.
-      </Panel>
+
+      {loadError && (
+        <Panel className="p-6 text-sm text-text-muted">
+          {loadError} Once <code className="font-mono text-text">apps/api</code> is running against
+          a seeded Supabase project (<code className="font-mono text-text">supabase/seed.sql</code>),
+          real listings show up here.
+        </Panel>
+      )}
+
+      {!loadError && agents.length === 0 && (
+        <Panel className="p-6 text-sm text-text-muted">
+          No {category.label.toLowerCase()} agents live yet — seed the catalog or bring one online
+          (see{' '}
+          <code className="font-mono text-text">
+            agents/{CATEGORY_AGENT_FOLDER[category.value as AgentCategory]}/README.md
+          </code>
+          ).
+        </Panel>
+      )}
+
+      {agents.length > 0 && (
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {agents.map((agent) => (
+            <AgentCard key={agent.id} agent={agent} />
+          ))}
+        </div>
+      )}
     </main>
   );
 }

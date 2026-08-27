@@ -45,6 +45,7 @@ cp .env.example .env     # fill in Supabase + 8004scan values
 
 # apply the schema to your Supabase project
 supabase db push         # or paste supabase/migrations/0001_init.sql into the SQL editor
+supabase db execute -f supabase/seed.sql   # optional: demo data for all 4 categories
 
 pnpm dev                 # runs apps/web and apps/api together via turbo
 ```
