@@ -420,10 +420,25 @@ export class SellerCore {
       spec !== null
         ? JSON.stringify({ task: spec.task, terms: spec.terms })
         : `job ${jobId}`;
+
+    // Real work happens here, before the LLM ever runs -- see strategy.ts.
+    // Same pattern as gridtrading's agent: the LLM narrates a real result,
+    // it never invents one.
+    let rebalanceResult: Record<string, unknown> | null = null;
+    try {
+      rebalanceResult = await this.runRebalanceCheck();
+    } catch (e) {
+      rebalanceResult = { rebalanceCheckError: e instanceof Error ? e.message : String(e) };
+    }
+
     const prompt =
-      "You accepted and were paid for the following job. Produce the " +
-      "deliverable now. Be complete and self-contained.\n\n" +
-      `JOB CONTEXT:\n${task}`;
+      "You accepted and were paid for the following job. A rebalance " +
+      "check has already run for real against a PancakeSwap V3 position -- " +
+      "its result is below. Write the deliverable as a factual report of " +
+      "that result. Do not invent prices, ranges, or transactions beyond " +
+      "what's given.\n\n" +
+      `JOB CONTEXT:\n${task}\n\n` +
+      `REAL REBALANCE CHECK RESULT:\n${JSON.stringify(rebalanceResult, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`;
     const work = await this.runWork(prompt, {
       sessionId: String(jobId),
       abortSignal,
@@ -452,7 +467,33 @@ export class SellerCore {
       job_id: jobId,
       tx_hash: res.submitTx,
       deliverable_url: res.deliverableUrl,
+      rebalance_result: rebalanceResult,
     };
+  }
+
+  /**
+   * Reads REBALANCE_CONFIG_JSON (tokenA/tokenB/fee/positionTokenId/
+   * rangeWidthPercent/driftThresholdPercent) and runs one real
+   * check-and-maybe-rebalance cycle via strategy.ts. Same "no guessed
+   * defaults" stance as gridtrading's runGridCheck -- missing config is an
+   * honest error in the deliverable, not a fabricated plan.
+   */
+  private async runRebalanceCheck(): Promise<Record<string, unknown>> {
+    const raw = process.env.REBALANCE_CONFIG_JSON;
+    if (!raw) {
+      return {
+        skipped: true,
+        reason:
+          "REBALANCE_CONFIG_JSON is not set (tokenA, tokenB, fee, positionTokenId, rangeWidthPercent, driftThresholdPercent). " +
+          "No default token addresses or an existing position are guessed here -- configure this explicitly before deploying.",
+      };
+    }
+    const { checkAndRebalance } = await import("./strategy.js");
+    const config = JSON.parse(raw, (key, value) =>
+      key === "positionTokenId" ? (value === null ? null : BigInt(value)) : value
+    );
+    const result = await checkAndRebalance(config);
+    return { decision: result.decision, tx_hashes: result.txHashes };
   }
 
   /**

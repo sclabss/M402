@@ -26,9 +26,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export function listAgents(category?: AgentCategory): Promise<{ agents: AgentSummary[] }> {
-  const qs = category ? `?category=${category}` : '';
-  return request(`/agents${qs}`);
+export function listAgents(category?: AgentCategory, sort?: 'performance'): Promise<{ agents: AgentSummary[] }> {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (sort) params.set('sort', sort);
+  const qs = params.toString();
+  return request(`/agents${qs ? `?${qs}` : ''}`);
 }
 
 export function listExternalAgents(

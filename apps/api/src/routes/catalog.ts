@@ -29,10 +29,11 @@ function toAgentSummary(scan: ScanAgent, category?: AgentCategory): AgentSummary
     a2aUrl: '', // 8004scan doesn't publish this directly; would need a
     // follow-up GET /agents/{chainId}/{tokenId} + card-discovery pass.
     source: '8004scan',
-    liveStats: {
-      total_score: scan.total_score,
-      star_count: scan.star_count,
-      total_feedbacks: scan.total_feedbacks,
+    liveStats: {},
+    reputationStats: {
+      totalScore: scan.total_score,
+      starCount: scan.star_count,
+      totalFeedbacks: scan.total_feedbacks,
     },
     statsUpdatedAt: null,
   };

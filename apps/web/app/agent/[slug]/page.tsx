@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import { ActivateFlow } from '@/components/ActivateFlow';
+import { StatsFull } from '@/components/AgentStats';
 import { Panel } from '@/components/ui/Panel';
 import { ApiUnreachableError, getAgent } from '@/lib/api';
 
@@ -32,6 +33,10 @@ export default async function AgentDetailPage({ params }: { params: { slug: stri
           {agent.walletAddress} · chain {agent.chainId}
         </p>
       </div>
+      <Panel className="flex flex-col gap-3 p-5">
+        <span className="font-mono text-[11px] uppercase tracking-wide text-text-muted">Track record</span>
+        <StatsFull stats={agent.liveStats} />
+      </Panel>
       <ActivateFlow agent={agent} />
     </main>
   );

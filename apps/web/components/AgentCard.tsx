@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { AgentSummary } from '@m402/shared-types';
+import { StatsBadgeCompact } from './AgentStats';
 import { Panel } from './ui/Panel';
 
 export function AgentCard({ agent }: { agent: AgentSummary }) {
@@ -15,10 +16,20 @@ export function AgentCard({ agent }: { agent: AgentSummary }) {
         </span>
       </div>
       <p className="text-sm text-text-muted">{agent.description}</p>
-      <div className="flex items-center gap-3 border-t border-line pt-3 font-mono text-[11px] text-text-muted">
-        <span>chain {agent.chainId}</span>
-        <span className="text-sage">A2A</span>
-        {isExternal && <span>view on 8004scan →</span>}
+      <div className="flex items-center justify-between border-t border-line pt-3">
+        {agent.reputationStats ? (
+          <span className="font-mono text-[11px] text-text">
+            ★ {agent.reputationStats.starCount} ·{' '}
+            <span className="text-text-muted">{agent.reputationStats.totalFeedbacks} reviews</span>
+          </span>
+        ) : (
+          <StatsBadgeCompact stats={agent.liveStats} />
+        )}
+        <div className="flex items-center gap-3 font-mono text-[11px] text-text-muted">
+          <span>chain {agent.chainId}</span>
+          <span className="text-sage">A2A</span>
+          {isExternal && <span>view on 8004scan →</span>}
+        </div>
       </div>
     </Panel>
   );

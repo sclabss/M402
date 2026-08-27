@@ -420,10 +420,30 @@ export class SellerCore {
       spec !== null
         ? JSON.stringify({ task: spec.task, terms: spec.terms })
         : `job ${jobId}`;
+
+    // Real work happens here, before the LLM ever runs -- see strategy.ts.
+    // The LLM's role is downgraded on purpose to "narrate what the fixed
+    // code actually did," not "decide what a grid trading agent might do."
+    // Consistent with tools.ts's own read-only-LLM boundary: the model
+    // never gets a tool that can sign or spend, it only gets to describe
+    // a real result it's handed.
+    let gridResult: Record<string, unknown> | null = null;
+    try {
+      gridResult = await this.runGridCheck();
+    } catch (e) {
+      // A misconfigured or unreachable grid check shouldn't silently
+      // become a fabricated LLM narrative -- surface it in the deliverable
+      // context instead of hiding it.
+      gridResult = { gridCheckError: e instanceof Error ? e.message : String(e) };
+    }
+
     const prompt =
-      "You accepted and were paid for the following job. Produce the " +
-      "deliverable now. Be complete and self-contained.\n\n" +
-      `JOB CONTEXT:\n${task}`;
+      "You accepted and were paid for the following job. A grid-trading " +
+      "check has already run for real against PancakeSwap V3 -- its result " +
+      "is below. Write the deliverable as a factual report of that result. " +
+      "Do not invent trades, prices, or outcomes beyond what's given.\n\n" +
+      `JOB CONTEXT:\n${task}\n\n` +
+      `REAL GRID CHECK RESULT:\n${JSON.stringify(gridResult)}`;
     const work = await this.runWork(prompt, {
       sessionId: String(jobId),
       abortSignal,
@@ -452,7 +472,86 @@ export class SellerCore {
       job_id: jobId,
       tx_hash: res.submitTx,
       deliverable_url: res.deliverableUrl,
+      grid_result: gridResult,
     };
+  }
+
+  /**
+   * Reads GRID_CONFIG_JSON (tokenA/tokenB/fee/lowerPrice/upperPrice/
+   * gridLevels/orderSizeWei) and, if present, runs one real check-and-maybe-
+   * trade cycle via strategy.ts. Required-but-absent config is reported as
+   * an error in the deliverable rather than silently skipped or filled with
+   * guessed token addresses -- see AUDIT.md on why guessing addresses isn't
+   * an acceptable substitute for real configuration here.
+   */
+  private async runGridCheck(): Promise<Record<string, unknown>> {
+    const raw = process.env.GRID_CONFIG_JSON;
+    if (!raw) {
+      return {
+        skipped: true,
+        reason:
+          "GRID_CONFIG_JSON is not set (tokenA, tokenB, fee, lowerPrice, upperPrice, gridLevels, orderSizeWei). " +
+          "No default token addresses are guessed here -- configure this explicitly before deploying.",
+      };
+    }
+    const { decideGridAction, executeGridTrade, getCurrentPrice } = await import("./strategy.js");
+    const config = JSON.parse(raw, (key, value) =>
+      key === "orderSizeWei" ? BigInt(value) : value
+    );
+    const currentPrice = await getCurrentPrice(config);
+    const decision = decideGridAction(config, currentPrice);
+    const execution = await executeGridTrade(config, decision);
+
+    if (execution) {
+      await this.reportStatsToMarketplace(execution).catch(() => {
+        // Stats reporting is genuinely secondary to the trade itself --
+        // the M402 API being unreachable shouldn't fail a job that
+        // otherwise executed for real on-chain.
+      });
+    }
+
+    return { decision, execution };
+  }
+
+  /**
+   * Reports real performance back to M402 after an executed trade. This
+   * is the mechanism, not a claim of a fully solved "real win rate" --
+   * honest about what it can and can't compute without a proper database
+   * of this agent's own trade history:
+   *
+   * - totalTrades: real, accumulated correctly (read-modify-write against
+   *   the agent's own current stats).
+   * - activeSince: real, set once on the first-ever trade.
+   * - winRatePct / realizedPnlUsd: NOT independently computed here --
+   *   this agent has no cost-basis tracking (it has no persistent store
+   *   at all beyond this read-modify-write against M402 itself), so a
+   *   real win rate needs that built first. Left as null rather than a
+   *   number that would look real but isn't -- the same "don't fabricate
+   *   data" stance AUDIT.md confirmed for the Advantage Report.
+   */
+  private async reportStatsToMarketplace(execution: { txHash: string }): Promise<void> {
+    const apiUrl = process.env.M402_API_URL;
+    const agentId = process.env.M402_AGENT_ID;
+    if (!apiUrl || !agentId) return; // not configured -- silently skip, not an error
+
+    const current = await fetch(`${apiUrl}/agents/${agentId}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((body) => body?.agent?.liveStats)
+      .catch(() => null);
+
+    const existing = current?.category === "grid_trading" ? current : null;
+
+    await fetch(`${apiUrl}/agents/${agentId}/stats`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        category: "grid_trading",
+        totalTrades: (existing?.totalTrades ?? 0) + 1,
+        winRatePct: existing?.winRatePct ?? null,
+        realizedPnlUsd: existing?.realizedPnlUsd ?? null,
+        activeSince: existing?.activeSince ?? new Date().toISOString(),
+      }),
+    });
   }
 
   /**

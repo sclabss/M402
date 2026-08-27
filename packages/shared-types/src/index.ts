@@ -58,7 +58,13 @@ export interface AgentSummary {
   // message/send (negotiate, notify_funded) is POSTed to a2aUrl itself.
   a2aUrl: string;
   source: 'native' | '8004scan';
-  liveStats: Record<string, number | string>;
+  liveStats: AgentStats | Record<string, never>; // empty object = no track record reported yet
+  // Trust/reputation signal, distinct from performance track record above --
+  // 8004scan agents carry this instead of (not as a variant of) liveStats,
+  // since "how many people rate this agent well" and "what did this agent
+  // actually do" are genuinely different questions. Conflating them into
+  // one loosely-typed field was the original mistake here.
+  reputationStats?: { totalScore: number; starCount: number; totalFeedbacks: number } | null;
   statsUpdatedAt?: string | null;
 }
 
@@ -111,4 +117,70 @@ export interface HireRecord {
   txHash?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Category-specific performance stats. This is what a marketplace needs
+ * to actually satisfy "make a genuinely informed call on which agent to
+ * hire" -- until this session, `agents.live_stats` existed as a column
+ * and a type field, but nothing in apps/web ever read or rendered it.
+ * Discriminated by category so the UI can show the *right* numbers per
+ * category rather than a generic, meaningless key-value dump.
+ */
+export interface RebalancingStats {
+  category: 'rebalancing';
+  positionsManaged: number;
+  timeInRangePct: number | null;
+  totalRebalances: number;
+  lastRebalanceAt: string | null;
+}
+
+export interface GridTradingStats {
+  category: 'grid_trading';
+  totalTrades: number;
+  winRatePct: number | null;
+  realizedPnlUsd: number | null;
+  activeSince: string | null; // the "window" TermiX's rubric explicitly asks for
+}
+
+export interface YieldOptimizationStats {
+  category: 'yield_optimization';
+  currentAprPct: number | null;
+  capitalDeployedUsd: number | null;
+  venuesCompared: number;
+}
+
+export interface HealthFactorStats {
+  category: 'health_factor';
+  positionsMonitored: number;
+  avgHealthFactor: number | null;
+  lowestHealthFactorSeen: number | null;
+  liquidationsPrevented: number;
+}
+
+export type AgentStats = RebalancingStats | GridTradingStats | YieldOptimizationStats | HealthFactorStats;
+
+/** The one metric each category's stats should be sorted/compared by. */
+export function primaryMetric(stats: AgentStats): { label: string; value: number | null; format: 'pct' | 'usd' | 'count' } {
+  switch (stats.category) {
+    case 'rebalancing':
+      return { label: 'Time in range', value: stats.timeInRangePct, format: 'pct' };
+    case 'grid_trading':
+      return { label: 'Win rate', value: stats.winRatePct, format: 'pct' };
+    case 'yield_optimization':
+      return { label: 'Current APR', value: stats.currentAprPct, format: 'pct' };
+    case 'health_factor':
+      return { label: 'Avg health factor', value: stats.avgHealthFactor, format: 'count' };
+  }
+}
+
+/**
+ * `liveStats` is typed as `AgentStats | Record<string, never>` (the empty
+ * object literally cannot carry a `category` key), but `'category' in
+ * stats` alone doesn't narrow that away for TypeScript -- an index
+ * signature technically satisfies the check either way. A real type
+ * predicate does what the inline check couldn't.
+ */
+export function hasAgentStats(stats: AgentStats | Record<string, never>): stats is AgentStats {
+  return typeof (stats as { category?: unknown }).category === 'string';
 }

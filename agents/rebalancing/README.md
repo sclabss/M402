@@ -5,11 +5,31 @@
 Watches a PancakeSwap V3 LP position and resets the range when price drifts
 out of it.
 
-- Bring in PancakeSwap tools (`pancakeMyPosition`, `pancakeAddLiquidity`,
-  `pancakeRemovePosition`) from bsc-mcp — https://github.com/TermiX-official/bsc-mcp
-  — inside `app/agent/src/tools.ts` (read-only) and the delivery step in
-  `sellerCore.ts`/the runWork hook in `unifiedMain.ts` (the only place
-  writes/signing happen, per the file's own boundary comments).
+**As of this session, this is real.** `app/agent/src/strategy.ts`
+implements an actual rebalance check against a real PancakeSwap V3
+position — reads the pool's current tick, compares it to the position's
+range, and if price has drifted near an edge, executes a real three-
+transaction rebalance (`decreaseLiquidity` → `collect` → `mint` a new
+position centered on the current price). `sellerCore.ts`'s
+`doWorkAndSubmit` runs this for real before the LLM narrates the result —
+same pattern as the `gridtrading` agent.
+
+**Required before this does anything:** set `REBALANCE_CONFIG_JSON`
+(tokenA, tokenB, fee, positionTokenId — `null` for a fresh mint,
+rangeWidthPercent, driftThresholdPercent) in the environment. No default
+addresses or an assumed existing position are guessed — see
+`sellerCore.ts`'s `runRebalanceCheck()`.
+
+**Validated this session:** `npm install` against the real
+`@bnbagent/sdk`, then both `tsc --noEmit` and the real `build` script,
+clean. **Not yet validated:** never executed against a live wallet. Two
+real gaps flagged with `TODO`s in the code, not hidden: zero slippage
+protection on the mint step, and the `NonfungiblePositionManager` address
+was corroborated by BscScan's testnet explorer but not independently
+bytecode-verified against the Factory it should point to (a same-source
+community doc gave a *different*, seemingly stale, SmartRouter address
+alongside it — worth a final on-chain sanity check before real funds).
+
 - Also the most direct route to the PancakeSwap partner challenge, alongside
   yieldoptimization.
 

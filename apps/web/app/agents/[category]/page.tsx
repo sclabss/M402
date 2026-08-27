@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AGENT_CATEGORIES, CATEGORY_AGENT_FOLDER, type AgentCategory, type AgentSummary } from '@m402/shared-types';
 import { AgentCard } from '@/components/AgentCard';
@@ -8,18 +9,30 @@ export function generateStaticParams() {
   return AGENT_CATEGORIES.map((c) => ({ category: c.value }));
 }
 
-export default async function CategoryPage({ params }: { params: { category: string } }) {
+export default async function CategoryPage({
+  params,
+  searchParams,
+}: {
+  params: { category: string };
+  searchParams: { sort?: string };
+}) {
   const category = AGENT_CATEGORIES.find((c) => c.value === params.category);
   if (!category) return notFound();
+
+  const sortByPerformance = searchParams.sort === 'performance';
 
   let agents: AgentSummary[] = [];
   let externalNote: string | undefined;
   let loadError: string | null = null;
   try {
     const [native, external] = await Promise.all([
-      listAgents(category.value),
+      listAgents(category.value, sortByPerformance ? 'performance' : undefined),
       listExternalAgents(category.value).catch(() => ({ agents: [] as AgentSummary[], hasMore: false })),
     ]);
+    // External (8004scan) agents have no M402-native performance stats, so
+    // they always sort after ranked native ones regardless of the toggle --
+    // real native track record beats an unranked external listing, not the
+    // other way around.
     agents = [...native.agents, ...external.agents];
     externalNote = 'note' in external ? external.note : undefined;
   } catch (err) {
@@ -33,6 +46,25 @@ export default async function CategoryPage({ params }: { params: { category: str
         <h1 className="font-display text-3xl font-medium text-text">{category.label}</h1>
         <p className="max-w-lg text-text-muted">{category.blurb}</p>
       </div>
+
+      {agents.length > 1 && (
+        <div className="flex items-center gap-2 font-mono text-[11px] text-text-muted">
+          <span>sort:</span>
+          <Link
+            href={`/agents/${category.value}`}
+            className={!sortByPerformance ? 'text-amber' : 'hover:text-text'}
+          >
+            newest
+          </Link>
+          <span>·</span>
+          <Link
+            href={`/agents/${category.value}?sort=performance`}
+            className={sortByPerformance ? 'text-amber' : 'hover:text-text'}
+          >
+            best track record
+          </Link>
+        </div>
+      )}
 
       {loadError && (
         <Panel className="p-6 text-sm text-text-muted">
