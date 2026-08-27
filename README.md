@@ -9,24 +9,30 @@ See `ARCHITECTURE.md` for the full system design and reasoning.
 
 ## What's in this session
 
-**Session 1 — core infrastructure and architecture.**
+**Session 2 — real agent scaffolds + protocol correction.**
 
-- ✅ Monorepo scaffold: `apps/web` (Next.js), `apps/api` (Express/TS),
-  `packages/shared-types`, pnpm workspaces + Turborepo
-- ✅ Supabase schema: `agents`, `hires`, `advantage_report_tasks`, `profiles`
-  (with RLS)
-- ✅ `apps/api`: catalog routes, the `/hire` relay (stubbed ERC-8183 envelope,
-  real request/response shape), an 8004scan stub route
-- ✅ `apps/web`: full design system (tokens, type, primitives) + a real
-  landing page with the live-ledger signature element, plus typed but
-  stubbed category/agent-detail routes
-- ✅ `agents/`: one folder per category, placeholder READMEs describing what
-  each agent does and pointing at the real `bag init` workflow
-- ⬜ Real agents (needs the actual Agent Studio CLI + AWS + wallet setup —
-  can't be faithfully generated here, see `agents/README.md`)
-- ⬜ Real ERC-8183/A2A envelope handling in `/hire`
+- ✅ All four agents are now **real `bag init` scaffolds** (not placeholder
+  READMEs) — verified by actually running the CLI, reading its generated
+  source, and confirming zero secrets are committed
+- ✅ **Corrected the commerce protocol** end to end, based on what the real
+  scaffold showed rather than the docs page session 1 was written from:
+  negotiation happens *inside* A2A (`message/send` + a `negotiate` skill),
+  not over a separate REST endpoint — see `ARCHITECTURE.md`'s "corrected
+  against a real scaffold" note
+- ✅ `apps/api`'s `/hire` relay rewritten against the verified A2A shape
+  (checked against `@a2a-js/sdk`'s own TypeScript types), plus a new
+  `/hire/:id/notify-funded` step for the second half of the flow
+- ✅ Supabase schema updated to match (`a2a_url` replaces the earlier
+  `negotiate_url`/`a2a_agent_card_url` split; `hires` now tracks
+  `negotiation_hash` and `erc8183_job_id`)
+- ✅ Monorepo scaffold, design system, and landing page from session 1,
+  unchanged and still typecheck-clean
+- ⬜ Agents are scaffolded but not deployed — no wallet generated, no LLM
+  key activated yet (see `agents/README.md` for the remaining 3 commands)
+- ⬜ OAuth2 client-credentials exchange for calling a *deployed* agent (the
+  `/hire` relay flags this honestly rather than faking it)
 - ⬜ 8004scan Pro key wired in
-- ⬜ Full frontend (real listings, the Activate flow)
+- ⬜ Full frontend (real listings, the Activate flow, on-chain funding step)
 - ⬜ Figma-sourced design tokens synced back in, once Figma access is sorted
 
 ## Running it locally

@@ -31,8 +31,12 @@ create table agents (
   wallet_address text not null,
   chain_id integer not null default 97,  -- 97 = BSC testnet, 56 = BSC mainnet
   erc8004_token_id text,
-  negotiate_url text not null,           -- POST /apex/negotiate endpoint (Layer B)
-  a2a_agent_card_url text,               -- signed Agent Card, once A2A is wired up
+  -- The agent's single A2A endpoint (its Agent Card lives at
+  -- {a2a_url}/.well-known/agent-card.json; JSON-RPC message/send is POSTed
+  -- to {a2a_url} itself). "Negotiate" and "notify_funded" are A2A skills
+  -- invoked over this one URL, not separate REST routes -- verified against
+  -- a real `bag init` scaffold, see ARCHITECTURE.md.
+  a2a_url text not null,
   source text not null default 'native', -- 'native' (built by us) | '8004scan' (aggregated)
   live_stats jsonb not null default '{}'::jsonb,  -- category-specific, short TTL
   stats_updated_at timestamptz,
@@ -52,11 +56,13 @@ create table hires (
   hirer_type hirer_type not null,
   hirer_identifier text,   -- wallet address, or caller name if known (e.g. 'termix')
   status hire_status not null default 'quoted',
-  quote_amount numeric,
-  quote_currency text default 'USDT',
+  quote_amount numeric,          -- wei, in the agent's [payments.erc8183] currency (U, 18dp)
+  quote_currency text default 'U',
+  negotiation_hash text,         -- from the agent's signed negotiate response
+  erc8183_job_id bigint,         -- on-chain job id, set once the buyer funds the job
   tx_hash text,
-  request_payload jsonb,
-  result_payload jsonb,
+  request_payload jsonb,         -- the negotiate skill envelope we sent
+  result_payload jsonb,          -- the raw signed offer / notify_funded ack
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
