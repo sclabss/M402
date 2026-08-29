@@ -23,6 +23,7 @@ RUN pnpm install --frozen-lockfile --filter @m402/api...
 
 # --- build: compile TypeScript to dist/ ---
 FROM deps AS build
+COPY tsconfig.json tsconfig.base.json* ./ 
 COPY packages/shared-types packages/shared-types
 COPY apps/api apps/api
 RUN pnpm --filter @m402/api build
@@ -35,8 +36,6 @@ COPY packages/shared-types/package.json packages/shared-types/package.json
 COPY apps/api/package.json apps/api/package.json
 RUN pnpm install --prod --frozen-lockfile --filter @m402/api...
 COPY --from=build /repo/apps/api/dist apps/api/dist
-
-# Fix: Copy from the build stage instead of the host context
 COPY --from=build /repo/packages/shared-types packages/shared-types
 
 EXPOSE 4000
