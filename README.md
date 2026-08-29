@@ -9,7 +9,39 @@ See `ARCHITECTURE.md` for the full system design and reasoning.
 
 ## What's in this session
 
-**Session 13 — three real UI bugs fixed, all one root cause.**
+**Session 14 — real health-factor monitoring against Venus; 3 of 4 agents
+now do real work. Plus a real upstream dependency fix affecting all four.**
+
+- ✅ `agents/healthfactor/app/agent/src/strategy.ts` — real Venus Protocol
+  account-liquidity reads (`Comptroller.getAccountLiquidity`) and a real
+  protective `repayBorrow` when configured and needed. One lending venue
+  for a first real pass (Venus) — comparing multiple venues is genuinely
+  `yieldoptimization`'s job, not this one's.
+- ✅ Reported Venus's real shortfall-based model honestly rather than
+  forcing it into an Aave-style normalized "health factor" number that
+  would need data this session doesn't compute (total borrowed value in
+  USD, via iterating entered markets + oracle prices).
+- ✅ Named a real scope limit rather than hiding it: `repayBorrow` only
+  repays the *caller's own* position. Protecting a third party's position
+  needs `repayBorrowBehalf`, not independently verified against Venus's
+  testnet contracts this session — flagged, not implemented as if solved.
+- ✅ **Caught a real upstream issue affecting all four agents, not just
+  this one:** `@bnbagent/studio-runtime` shipped a newer release since
+  these agents were scaffolded in session 2, tightening its peer
+  requirement past the `@bnbagent/sdk` version all four had pinned.
+  `healthfactor`'s install failed outright on it. Updated all four
+  package.json files consistently and re-validated `gridtrading` and
+  `rebalancing` from a clean install too, rather than fix the one agent
+  in front of me and leave the other three quietly exposed to the same
+  failure on their next fresh install.
+- ✅ Same validation discipline as sessions 10, 11: real `npm install` +
+  `tsc --noEmit` + the real `build` script for all three real agents.
+- ⬜ `yieldoptimization` is the one agent left with no real logic at all —
+  and it's the hardest of the four, needing multiple lending/DEX venues
+  compared simultaneously (PancakeSwap, Venus, Aave V3, Lista) rather
+  than the single-venue pattern the other three could each start with.
+
+**Session 13 recap:** three real UI bugs fixed, all one root cause.
 
 Direct bug report: Connect Wallet didn't work, Browse Agents didn't work,
 no way back to home from a sub-page. All three traced to one thing — no

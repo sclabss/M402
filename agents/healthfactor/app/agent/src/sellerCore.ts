@@ -420,10 +420,25 @@ export class SellerCore {
       spec !== null
         ? JSON.stringify({ task: spec.task, terms: spec.terms })
         : `job ${jobId}`;
+
+    // Real work happens here, before the LLM ever runs -- same pattern as
+    // gridtrading and rebalancing. The LLM narrates a real result, never
+    // invents one.
+    let healthResult: Record<string, unknown> | null = null;
+    try {
+      healthResult = await this.runHealthCheck();
+    } catch (e) {
+      healthResult = { healthCheckError: e instanceof Error ? e.message : String(e) };
+    }
+
     const prompt =
-      "You accepted and were paid for the following job. Produce the " +
-      "deliverable now. Be complete and self-contained.\n\n" +
-      `JOB CONTEXT:\n${task}`;
+      "You accepted and were paid for the following job. A real health-" +
+      "factor check against Venus Protocol has already run -- its result " +
+      "is below. Write the deliverable as a factual report of that " +
+      "result. Do not invent balances, risk levels, or actions beyond " +
+      "what's given.\n\n" +
+      `JOB CONTEXT:\n${task}\n\n` +
+      `REAL HEALTH CHECK RESULT:\n${JSON.stringify(healthResult, (_k, v) => (typeof v === "bigint" ? v.toString() : v))}`;
     const work = await this.runWork(prompt, {
       sessionId: String(jobId),
       abortSignal,
@@ -452,7 +467,35 @@ export class SellerCore {
       job_id: jobId,
       tx_hash: res.submitTx,
       deliverable_url: res.deliverableUrl,
+      health_result: healthResult,
     };
+  }
+
+  /**
+   * Reads HEALTH_CONFIG_JSON (monitoredAccount, liquidationBufferPct,
+   * repayVTokenAddress/repayUnderlyingAddress/repayAmountWei -- all three
+   * null for read-only monitoring) and runs one real check-and-maybe-
+   * protect cycle via strategy.ts. Same "no guessed defaults" stance as
+   * the other two agents' run*Check() methods.
+   */
+  private async runHealthCheck(): Promise<Record<string, unknown>> {
+    const raw = process.env.HEALTH_CONFIG_JSON;
+    if (!raw) {
+      return {
+        skipped: true,
+        reason:
+          "HEALTH_CONFIG_JSON is not set (monitoredAccount, liquidationBufferPct, " +
+          "repayVTokenAddress, repayUnderlyingAddress, repayAmountWei). No default " +
+          "account or repay target is guessed here -- configure this explicitly before deploying.",
+      };
+    }
+    const { checkHealth, protectIfNeeded } = await import("./strategy.js");
+    const config = JSON.parse(raw, (key, value) =>
+      key === "repayAmountWei" && value !== null ? BigInt(value) : value
+    );
+    const check = await checkHealth(config);
+    const protection = await protectIfNeeded(config, check);
+    return { check, protection };
   }
 
   /**

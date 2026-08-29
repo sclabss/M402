@@ -53,11 +53,13 @@ all assume the agents actually *do* something. Right now they don't.
 
 > **Update, session 10:** fixed for `gridtrading`. **Update, session 11:**
 > also fixed for `rebalancing`, reusing most of `gridtrading`'s verified
-> PancakeSwap infrastructure rather than re-deriving it. `yieldoptimization`
-> and `healthfactor` still have the gap described below exactly as
-> written — and unlike `rebalancing`, they need genuinely new protocol
-> research (Venus, Aave V3), not reuse of what's already verified. Two of
-> four real now; don't read the rest of this section as resolved.
+> PancakeSwap infrastructure rather than re-deriving it. **Update, session
+> 14:** also fixed for `healthfactor` against Venus Protocol (one lending
+> venue, real reads and a real protective repay). `yieldoptimization` is
+> the one agent left with no real logic — and the hardest of the four,
+> since comparing yield genuinely needs multiple venues at once rather
+> than the single-venue pattern the other three could each start from.
+> Three of four real now.
 
 ## Where we were actually wrong (not "unverified" — wrong, and caught)
 
