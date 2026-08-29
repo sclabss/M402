@@ -23,7 +23,7 @@ RUN pnpm install --frozen-lockfile --filter @m402/api...
 
 # --- build: compile TypeScript to dist/ ---
 FROM deps AS build
-COPY tsconfig.json tsconfig.base.json* ./ 
+COPY tsconfig.base.json* ./ 
 COPY packages/shared-types packages/shared-types
 COPY apps/api apps/api
 RUN pnpm --filter @m402/api build
