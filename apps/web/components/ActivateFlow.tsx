@@ -7,7 +7,7 @@ import { ApiUnreachableError, negotiate, notifyFunded } from '@/lib/api';
 import { CONTRACTS } from '@/lib/erc8183/contracts';
 import { fundJob, type FundProgress, type FundStep } from '@/lib/erc8183/buyer';
 import { pollForDeliverable } from '@/lib/erc8183/deliverable';
-import { useWallet } from '@/lib/useWallet';
+import { useWallet } from '@/components/WalletProvider';
 import { Button } from './ui/Button';
 import { Panel } from './ui/Panel';
 import { StatusBadge } from './ui/StatusBadge';

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { IBM_Plex_Mono, IBM_Plex_Sans, Space_Grotesk } from 'next/font/google';
+import { SiteHeader } from '@/components/SiteHeader';
+import { WalletProvider } from '@/components/WalletProvider';
 import './globals.css';
 
 const display = Space_Grotesk({
@@ -29,7 +31,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
-      <body className="bg-ink font-body text-text antialiased">{children}</body>
+      <body className="bg-ink font-body text-text antialiased">
+        <WalletProvider>
+          <SiteHeader />
+          {children}
+        </WalletProvider>
+      </body>
     </html>
   );
 }

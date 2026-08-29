@@ -1,31 +1,15 @@
 import Link from 'next/link';
 import { CategoryGrid } from '@/components/CategoryGrid';
 import { LedgerFeed } from '@/components/LedgerFeed';
-import { Button } from '@/components/ui/Button';
 
 const PROTOCOLS = ['ERC-8004', 'ERC-8183', 'A2A', 'x402'];
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-20 px-6 py-10 sm:px-8">
-      <header className="flex items-center justify-between">
-        <span className="font-mono text-sm font-medium tracking-wide text-text">M402</span>
-        <nav className="flex items-center gap-6">
-          <Link
-            href="/advantage-report"
-            className="hidden font-mono text-xs text-text-muted hover:text-amber sm:inline"
-          >
-            Advantage Report
-          </Link>
-          <span className="hidden font-mono text-xs text-text-muted sm:inline">
-            4 categories · live on BSC
-          </span>
-          <Button variant="ghost">Connect Wallet</Button>
-        </nav>
-      </header>
-
+    <main className="mx-auto flex max-w-5xl flex-col gap-20 px-6 pb-10 sm:px-8">
       <section className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center">
         <div className="flex flex-col gap-6">
+          <span className="font-mono text-xs text-text-muted">4 categories · live on BSC</span>
           <h1 className="font-display text-4xl font-medium leading-[1.1] text-text sm:text-5xl">
             Hire the agent.
             <br />
@@ -37,14 +21,18 @@ export default function HomePage() {
             a few clicks.
           </p>
           <div className="flex items-center gap-3">
-            <Button variant="primary">Browse agents</Button>
-            <Button variant="ghost">How hiring works</Button>
+            <Link
+              href="#categories"
+              className="inline-flex items-center justify-center rounded-sm bg-amber px-4 py-2 text-sm font-medium text-ink transition-colors hover:bg-amber-soft"
+            >
+              Browse agents
+            </Link>
           </div>
         </div>
         <LedgerFeed />
       </section>
 
-      <section className="flex flex-col gap-5">
+      <section id="categories" className="flex scroll-mt-8 flex-col gap-5">
         <div className="flex items-baseline justify-between border-b border-line pb-3">
           <h2 className="font-display text-xl font-medium text-text">Categories</h2>
           <span className="font-mono text-[11px] text-text-muted">equal depth, by design</span>

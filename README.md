@@ -9,8 +9,34 @@ See `ARCHITECTURE.md` for the full system design and reasoning.
 
 ## What's in this session
 
-**Session 12 — marketplace can actually help someone find a good agent
-now, not just list them.**
+**Session 13 — three real UI bugs fixed, all one root cause.**
+
+Direct bug report: Connect Wallet didn't work, Browse Agents didn't work,
+no way back to home from a sub-page. All three traced to one thing — no
+page except `/` ever rendered a nav at all, and `/`'s own header had two
+buttons with zero `onClick`/`href`. Exactly the visual-testing gap
+`AUDIT.md` named: typecheck doesn't care whether a button does anything.
+
+- ✅ `components/WalletProvider.tsx` — wallet state moved from a
+  per-component hook to a React Context. A naive fix (just add an
+  `onClick`) would've left a second bug: a header connect button and
+  ActivateFlow's own would've been two independent `useState`s, so
+  connecting in one place wouldn't show as connected in the other. Fixed
+  at the root, not patched at the symptom.
+- ✅ `components/SiteHeader.tsx`, wired into `app/layout.tsx` — a real
+  header (logo → home, nav, working connect button) now renders on every
+  page automatically. This is the actual fix for "can't get home" — it
+  was never a nav-bar bug specifically, sub-pages had no nav bar at all.
+- ✅ "Browse agents" now really navigates. Removed "How hiring works"
+  rather than leave a fourth silently-dead button with nowhere honest to
+  send it.
+- ✅ Validated: full typecheck clean, `apps/api` build clean, `apps/web`
+  hits the same known sandbox font limitation as every prior session.
+  Confirmed via grep that no stale references to the old per-component
+  hook remain anywhere.
+
+**Session 12 recap:** marketplace can actually help someone find a good
+agent now, not just list them.
 
 Prompted directly by feedback that the platform needs to be useful for
 *finding* good agents, not just hiring whichever one you land on. Checked
