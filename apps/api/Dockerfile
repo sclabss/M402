@@ -35,7 +35,9 @@ COPY packages/shared-types/package.json packages/shared-types/package.json
 COPY apps/api/package.json apps/api/package.json
 RUN pnpm install --prod --frozen-lockfile --filter @m402/api...
 COPY --from=build /repo/apps/api/dist apps/api/dist
-COPY packages/shared-types packages/shared-types
+
+# Fix: Copy from the build stage instead of the host context
+COPY --from=build /repo/packages/shared-types packages/shared-types
 
 EXPOSE 4000
 CMD ["node", "apps/api/dist/index.js"]
