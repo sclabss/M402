@@ -4,10 +4,11 @@
     "outDir": "dist",
     "rootDir": "src",
     "types": ["node"],
-    "noEmit": false,               
-    "target": "ES2022",            
-    "moduleResolution": "NodeNext",   
-    "esModuleInterop": true,         
+    "noEmit": false,
+    "target": "ES2022",
+    "module": "NodeNext",             
+    "moduleResolution": "NodeNext", 
+    "esModuleInterop": true,
     "allowSyntheticDefaultImports": true
   },
   "include": ["src"]
