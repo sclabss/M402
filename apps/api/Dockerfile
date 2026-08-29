@@ -10,7 +10,7 @@
 # confidence level than the typecheck/build validation the rest of this
 # project got. Worth running `docker build .` for real before relying on it.
 
-FROM node:20-slim AS base
+FROM docker.io/library/node:22-slim AS base
 RUN corepack enable
 WORKDIR /repo
 
