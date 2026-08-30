@@ -1,5 +1,8 @@
 {
   "name": "gridtrading-workspace",
   "private": true,
-  "packageManager": "pnpm@10.24.0"
+  "packageManager": "pnpm@10.24.0",
+  "dependencies": {
+    "dotenv": "^17.4.2"
+  }
 }
