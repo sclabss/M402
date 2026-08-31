@@ -27,6 +27,7 @@ kind = "evm-local"
 signer = "local"
 keystore_dir = "../../.studio/wallets"
 # address = "0x..."   # filled by `bag wallet new`
+address = "0x5ba28c9d93e2552065330419693e5540138e34ba"
 
 [llm]
 provider = "pieverse-llm"
@@ -39,6 +40,7 @@ network = "bsc-mainnet"
 # zero-deposit default. `bag llm activate` creates the key with $0
 # allocation; switch to a paid model + `bag llm topup` only when you need it.
 initial_allocation_usd = 0
+key_hash = "4451e92c2f535f6bb1e794ae08bc9b21e5b862843073b1653b0da920ae64ea5c"
 
 [llm.auto_renew]
 # hook auto-allocates from Pieverse Account Balance to the API key when Key
@@ -69,7 +71,7 @@ auto_settle = false                            # opt-in: detect dispute-window-e
 [storage]
 # Deliverables written to local disk (file://). Offline-dev only —
 # does NOT survive deploy. Path from STORAGE_LOCAL_PATH.
-kind = "local"
+kind = "ipfs"
 
 
 [payments.x402_seller]
@@ -87,3 +89,7 @@ work_timeout_seconds = 60
 # Optional Bazaar metadata can be added later as scalar JSON fields under
 # [payments.x402_seller.bazaar]: info_json, schema_json, description,
 # and route_template.
+
+[deploy]
+iam_notice_accepted_at = "2026-08-31T16:16:25Z"
+iam_notice_version = 1
